@@ -41,9 +41,9 @@ def blueprint(owner):
 
 
 @pytest.fixture
-def factory(owner, blueprint):
-    """Deploy the PassthroughFactory with the blueprint"""
-    return owner.deploy(project.PassthroughFactory, blueprint.address)
+def factory(owner, blueprint, ownership_admin, parameter_admin):
+    """Deploy the PassthroughFactory with the blueprint and admins"""
+    return owner.deploy(project.PassthroughFactory, blueprint.address, ownership_admin.address, parameter_admin.address)
 
 
 def test_deploy_multiple_gauges_scenario(factory, ownership_admin, parameter_admin, owner, accounts):
@@ -67,8 +67,6 @@ def test_deploy_multiple_gauges_scenario(factory, ownership_admin, parameter_adm
     # Deploy passthroughs for each gauge
     for i, gauge in enumerate(gauges):
         tx = factory.create_passthrough(
-            ownership_admin.address,
-            parameter_admin.address,
             [],
             guards,
             [],
@@ -104,8 +102,6 @@ def test_factory_gas_savings(factory, ownership_admin, parameter_admin, owner, a
 
     # Deploy via factory (using blueprint)
     tx_factory = factory.create_passthrough(
-        ownership_admin.address,
-        parameter_admin.address,
         [],
         [guard.address],
         [],
@@ -113,25 +109,12 @@ def test_factory_gas_savings(factory, ownership_admin, parameter_admin, owner, a
     )
     factory_gas = tx_factory.gas_used
 
-    # Deploy directly
-    tx_direct = owner.deploy(
-        project.Passthrough,
-        ownership_admin.address,
-        parameter_admin.address,
-        [],
-        [guard.address],
-        []
-    )
-    direct_gas = tx_direct.gas_used
-
-    # Factory deployment should use less gas
-    # Blueprint pattern typically saves 40-60% of deployment gas
+    # Note: Can't easily compare to direct deployment since Passthrough now requires factory
+    # But we can verify gas usage is reasonable
     print(f"Factory deployment gas: {factory_gas}")
-    print(f"Direct deployment gas: {direct_gas}")
-    print(f"Gas saved: {direct_gas - factory_gas} ({((direct_gas - factory_gas) / direct_gas * 100):.2f}%)")
 
-    # Factory should use significantly less gas
-    assert factory_gas < direct_gas
+    # Factory deployment should use reasonable gas (< 500k for simple deployment)
+    assert factory_gas < 500000
 
 
 def test_upgrade_blueprint_and_deploy(factory, ownership_admin, parameter_admin, owner, accounts):
@@ -142,8 +125,6 @@ def test_upgrade_blueprint_and_deploy(factory, ownership_admin, parameter_admin,
 
     # Deploy a passthrough with original blueprint
     factory.create_passthrough(
-        ownership_admin.address,
-        parameter_admin.address,
         [],
         [guard.address],
         [],
@@ -161,8 +142,6 @@ def test_upgrade_blueprint_and_deploy(factory, ownership_admin, parameter_admin,
 
     # Deploy another passthrough with new blueprint
     factory.create_passthrough(
-        ownership_admin.address,
-        parameter_admin.address,
         [],
         [guard.address],
         [],
@@ -198,8 +177,6 @@ def test_batch_deployment_simulation(factory, ownership_admin, parameter_admin, 
     # Batch deploy
     for i in range(num_deployments):
         tx = factory.create_passthrough(
-            ownership_admin.address,
-            parameter_admin.address,
             [],
             guards,
             [],
@@ -216,3 +193,38 @@ def test_batch_deployment_simulation(factory, ownership_admin, parameter_admin, 
         pt = Contract(pt_address, abi=project.Passthrough.contract_type.abi)
         pt.set_name(f"Passthrough #{i + 1}", sender=accounts[6])
         assert pt.name() == f"Passthrough #{i + 1}"
+
+
+def test_centralized_admin_management(factory, ownership_admin, parameter_admin, owner, accounts, blueprint):
+    """
+    Test that admin management is centralized at the factory level
+    """
+    guard = accounts[6]
+
+    # Create multiple passthroughs
+    for i in range(3):
+        factory.create_passthrough([], [guard.address], [], sender=owner)
+
+    # Get all passthroughs
+    pt1 = Contract(factory.get_passthrough(0), abi=project.Passthrough.contract_type.abi)
+    pt2 = Contract(factory.get_passthrough(1), abi=project.Passthrough.contract_type.abi)
+    pt3 = Contract(factory.get_passthrough(2), abi=project.Passthrough.contract_type.abi)
+
+    # All should have same admins
+    assert pt1.ownership_admin() == ownership_admin.address
+    assert pt2.ownership_admin() == ownership_admin.address
+    assert pt3.ownership_admin() == ownership_admin.address
+
+    # Change ownership admin at factory level
+    new_ownership_admin = accounts[7]
+    factory.set_ownership_admin(new_ownership_admin.address, sender=ownership_admin)
+
+    # Existing passthroughs now query the new admin
+    assert pt1.ownership_admin() == new_ownership_admin.address
+    assert pt2.ownership_admin() == new_ownership_admin.address
+    assert pt3.ownership_admin() == new_ownership_admin.address
+
+    # New passthroughs also get the new admin
+    factory.create_passthrough([], [guard.address], [], sender=owner)
+    pt4 = Contract(factory.get_passthrough(3), abi=project.Passthrough.contract_type.abi)
+    assert pt4.ownership_admin() == new_ownership_admin.address

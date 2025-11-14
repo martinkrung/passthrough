@@ -41,15 +41,17 @@ def blueprint(owner):
 
 
 @pytest.fixture
-def factory(owner, blueprint):
-    """Deploy the PassthroughFactory with the blueprint"""
-    return owner.deploy(project.PassthroughFactory, blueprint.address)
+def factory(owner, blueprint, ownership_admin, parameter_admin):
+    """Deploy the PassthroughFactory with the blueprint and admins"""
+    return owner.deploy(project.PassthroughFactory, blueprint.address, ownership_admin.address, parameter_admin.address)
 
 
-def test_factory_deployment(factory, blueprint, owner):
+def test_factory_deployment(factory, blueprint, owner, ownership_admin, parameter_admin):
     """Test that the factory deploys correctly"""
     assert factory.blueprint() == blueprint.address
     assert factory.owner() == owner.address
+    assert factory.ownership_admin() == ownership_admin.address
+    assert factory.parameter_admin() == parameter_admin.address
     assert factory.get_passthrough_count() == 0
 
 
@@ -61,8 +63,6 @@ def test_create_passthrough(factory, ownership_admin, parameter_admin, guard, di
 
     # Create passthrough
     tx = factory.create_passthrough(
-        ownership_admin.address,
-        parameter_admin.address,
         reward_receivers,
         guards,
         distributors,
@@ -73,8 +73,6 @@ def test_create_passthrough(factory, ownership_admin, parameter_admin, guard, di
     events = list(tx.decode_logs(factory.PassthroughCreated))
     assert len(events) == 1
     event = events[0]
-    assert event.ownership_admin == ownership_admin.address
-    assert event.parameter_admin == parameter_admin.address
     assert event.deployer == owner.address
 
     # Check factory state
@@ -84,8 +82,9 @@ def test_create_passthrough(factory, ownership_admin, parameter_admin, guard, di
 
     # Verify the passthrough contract works
     passthrough = Contract(passthrough_address, abi=project.Passthrough.contract_type.abi)
-    assert passthrough.OWNERSHIP_ADMIN() == ownership_admin.address
-    assert passthrough.PARAMETER_ADMIN() == parameter_admin.address
+    assert passthrough.ownership_admin() == ownership_admin.address
+    assert passthrough.parameter_admin() == parameter_admin.address
+    assert passthrough.FACTORY() == factory.address
 
 
 def test_multiple_passthroughs(factory, ownership_admin, parameter_admin, guard, distributor, owner, accounts):
@@ -94,8 +93,6 @@ def test_multiple_passthroughs(factory, ownership_admin, parameter_admin, guard,
 
     for i in range(num_passthroughs):
         factory.create_passthrough(
-            ownership_admin.address,
-            parameter_admin.address,
             [],
             [guard.address],
             [distributor.address],
@@ -120,8 +117,6 @@ def test_passthrough_functionality(factory, ownership_admin, parameter_admin, gu
     """Test that created passthroughs have full functionality"""
     # Create passthrough
     tx = factory.create_passthrough(
-        ownership_admin.address,
-        parameter_admin.address,
         [],
         [guard.address],
         [distributor.address],
@@ -166,6 +161,44 @@ def test_set_blueprint(factory, owner, user):
         factory.set_blueprint(new_blueprint.address, sender=user)
 
 
+def test_set_ownership_admin(factory, ownership_admin, parameter_admin, owner, user, accounts):
+    """Test setting a new ownership admin"""
+    new_ownership_admin = accounts[6]
+
+    # Ownership admin can set new ownership admin
+    tx = factory.set_ownership_admin(new_ownership_admin.address, sender=ownership_admin)
+
+    # Check event
+    events = list(tx.decode_logs(factory.OwnershipAdminSet))
+    assert len(events) == 1
+    assert events[0].ownership_admin == new_ownership_admin.address
+
+    assert factory.ownership_admin() == new_ownership_admin.address
+
+    # Non-ownership admin cannot set
+    with ape.reverts("only ownership admin can set new ownership admin"):
+        factory.set_ownership_admin(user.address, sender=user)
+
+
+def test_set_parameter_admin(factory, ownership_admin, parameter_admin, user, accounts):
+    """Test setting a new parameter admin"""
+    new_parameter_admin = accounts[6]
+
+    # Ownership admin can set new parameter admin
+    tx = factory.set_parameter_admin(new_parameter_admin.address, sender=ownership_admin)
+
+    # Check event
+    events = list(tx.decode_logs(factory.ParameterAdminSet))
+    assert len(events) == 1
+    assert events[0].parameter_admin == new_parameter_admin.address
+
+    assert factory.parameter_admin() == new_parameter_admin.address
+
+    # Non-ownership admin cannot set
+    with ape.reverts("only ownership admin can set new parameter admin"):
+        factory.set_parameter_admin(user.address, sender=user)
+
+
 def test_transfer_ownership(factory, owner, user, accounts):
     """Test transferring factory ownership"""
     new_owner = accounts[6]
@@ -204,8 +237,6 @@ def test_get_passthrough_out_of_bounds(factory, owner):
 
     # Create one passthrough
     factory.create_passthrough(
-        owner.address,
-        owner.address,
         [],
         [owner.address],
         [],
@@ -224,8 +255,6 @@ def test_anyone_can_create_passthrough(factory, ownership_admin, parameter_admin
     """Test that anyone can create a passthrough (permissionless deployment)"""
     # User (non-owner) can create passthrough
     tx = factory.create_passthrough(
-        ownership_admin.address,
-        parameter_admin.address,
         [],
         [guard.address],
         [distributor.address],
@@ -240,15 +269,10 @@ def test_anyone_can_create_passthrough(factory, ownership_admin, parameter_admin
     assert factory.get_passthrough_count() == 1
 
 
-def test_passthrough_independent_configs(factory, ownership_admin, parameter_admin, guard, distributor, owner, accounts):
-    """Test that each passthrough has independent configuration"""
-    admin1 = accounts[6]
-    admin2 = accounts[7]
-
-    # Create two passthroughs with different admins
+def test_passthrough_shares_factory_admins(factory, ownership_admin, parameter_admin, guard, distributor, owner, accounts):
+    """Test that all passthroughs share the same admins from factory"""
+    # Create two passthroughs
     factory.create_passthrough(
-        admin1.address,
-        parameter_admin.address,
         [],
         [guard.address],
         [],
@@ -256,8 +280,6 @@ def test_passthrough_independent_configs(factory, ownership_admin, parameter_adm
     )
 
     factory.create_passthrough(
-        admin2.address,
-        parameter_admin.address,
         [],
         [guard.address],
         [],
@@ -268,14 +290,36 @@ def test_passthrough_independent_configs(factory, ownership_admin, parameter_adm
     passthrough1 = Contract(factory.get_passthrough(0), abi=project.Passthrough.contract_type.abi)
     passthrough2 = Contract(factory.get_passthrough(1), abi=project.Passthrough.contract_type.abi)
 
-    # Verify different ownership
-    assert passthrough1.OWNERSHIP_ADMIN() == admin1.address
-    assert passthrough2.OWNERSHIP_ADMIN() == admin2.address
-    assert passthrough1.OWNERSHIP_ADMIN() != passthrough2.OWNERSHIP_ADMIN()
+    # Both should have the same admins from factory
+    assert passthrough1.ownership_admin() == ownership_admin.address
+    assert passthrough2.ownership_admin() == ownership_admin.address
+    assert passthrough1.parameter_admin() == parameter_admin.address
+    assert passthrough2.parameter_admin() == parameter_admin.address
 
-    # Set different names
+    # But can have different names
     passthrough1.set_name("Passthrough 1", sender=guard)
     passthrough2.set_name("Passthrough 2", sender=guard)
 
     assert passthrough1.name() == "Passthrough 1"
     assert passthrough2.name() == "Passthrough 2"
+
+
+def test_admin_change_affects_new_passthroughs(factory, ownership_admin, parameter_admin, guard, owner, accounts):
+    """Test that changing factory admins affects new passthroughs"""
+    # Create first passthrough
+    factory.create_passthrough([], [guard.address], [], sender=owner)
+    passthrough1 = Contract(factory.get_passthrough(0), abi=project.Passthrough.contract_type.abi)
+
+    # Change ownership admin
+    new_ownership_admin = accounts[6]
+    factory.set_ownership_admin(new_ownership_admin.address, sender=ownership_admin)
+
+    # Create second passthrough
+    factory.create_passthrough([], [guard.address], [], sender=owner)
+    passthrough2 = Contract(factory.get_passthrough(1), abi=project.Passthrough.contract_type.abi)
+
+    # First passthrough sees old admin
+    assert passthrough1.ownership_admin() == ownership_admin.address
+
+    # Second passthrough sees new admin from factory
+    assert passthrough2.ownership_admin() == new_ownership_admin.address

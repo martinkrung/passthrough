@@ -13,7 +13,9 @@ interface Gauge:
     def reward_data(_token: address) -> (address, uint256, uint256, uint256): view
     def manager() -> address: view
 
-
+interface Factory:
+    def ownership_admin() -> address: view
+    def parameter_admin() -> address: view
 
 FIRST_GUARD: constant(address) = 0x9f499A0B7c14393502207877B17E3748beaCd70B
 
@@ -26,12 +28,12 @@ reward_receivers: public(DynArray[address, 10])  # L2 reward receivers
 single_reward_receiver: public(address)
 single_reward_token: public(address)
 
-OWNERSHIP_ADMIN: public(immutable(address))
-PARAMETER_ADMIN: public(immutable(address))
+FACTORY: public(immutable(address))
 
 name: public(String[128])
 
 event PassthroughDeployed:
+    factory: indexed(address)
     timestamp: uint256
 
 event SetSingleRewardReceiver:
@@ -91,30 +93,35 @@ event RewardData:
     timestamp: uint256
 
 @deploy
-def __init__(_ownership_admin: address, _parameter_admin: address, _reward_receivers: DynArray[address, 10], _guards: DynArray[address, 7], _distributors: DynArray[address, 10]):
+def __init__(_reward_receivers: DynArray[address, 10], _guards: DynArray[address, 7], _distributors: DynArray[address, 10]):
     """
     @notice Contract constructor
     @param _reward_receivers Reward receivers addresses, currently not used anywhere!
     @param _guards Guards addresses
     @param _distributors Distributors addresses
     @dev _reward_receivers are not used anywhere, as the sending reward is gated by the depositor address in the gauge (this contract)
+    @dev msg.sender must be the factory contract
     """
+    FACTORY = msg.sender
+
     self.reward_receivers = _reward_receivers
     self.guards = _guards
-    # add default guards
-    OWNERSHIP_ADMIN = _ownership_admin
-    PARAMETER_ADMIN = _parameter_admin
-    self.guards.append(OWNERSHIP_ADMIN)
-    self.guards.append(PARAMETER_ADMIN)
-    self.guards.append(FIRST_GUARD)
-    
-    self.non_removable_guards.append(OWNERSHIP_ADMIN)
-    self.non_removable_guards.append(PARAMETER_ADMIN)
 
-    
+    # Get admins from factory
+    ownership_admin: address = staticcall Factory(FACTORY).ownership_admin()
+    parameter_admin: address = staticcall Factory(FACTORY).parameter_admin()
+
+    # Add factory admins as guards
+    self.guards.append(ownership_admin)
+    self.guards.append(parameter_admin)
+    self.guards.append(FIRST_GUARD)
+
+    self.non_removable_guards.append(ownership_admin)
+    self.non_removable_guards.append(parameter_admin)
+
     self.distributors = _distributors
 
-    log PassthroughDeployed(block.timestamp)
+    log PassthroughDeployed(FACTORY, block.timestamp)
 
 
 @external
@@ -322,3 +329,21 @@ def get_all_distributors() -> DynArray[address, 10]:
     @return DynArray[address, 10] Array containing all distributors
     """
     return self.distributors
+
+@external
+@view
+def ownership_admin() -> address:
+    """
+    @notice Get the ownership admin address from factory
+    @return address The ownership admin address
+    """
+    return staticcall Factory(FACTORY).ownership_admin()
+
+@external
+@view
+def parameter_admin() -> address:
+    """
+    @notice Get the parameter admin address from factory
+    @return address The parameter admin address
+    """
+    return staticcall Factory(FACTORY).parameter_admin()
