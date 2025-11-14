@@ -56,3 +56,83 @@ The contract emits events for all significant actions:
 - Maximum of 10 distributors
 - Maximum of 10 reward receivers in the initial array (currently not used)
 - Reward receivers must be compatible gauge contracts
+
+## PassthroughFactory Contract
+
+The PassthroughFactory contract implements the Blueprint pattern for efficient deployment of multiple Passthrough contracts.
+
+### Overview
+
+The factory uses Vyper's blueprint pattern to deploy Passthrough contracts with significantly reduced gas costs. A blueprint is deployed once, and then multiple instances can be created from it at a fraction of the cost of normal deployments.
+
+### Key Features
+
+- **Gas Efficient Deployments**: Typically saves 40-60% of deployment gas compared to direct deployments
+- **Centralized Management**: Track all deployed passthroughs from a single contract
+- **Upgradeable Blueprint**: Owner can update the blueprint to deploy new versions
+- **Permissionless Deployment**: Anyone can deploy a passthrough via the factory
+- **Deployment Tracking**: All deployed passthroughs are tracked and indexed
+
+### Factory Functions
+
+#### Deployment
+- `create_passthrough`: Deploy a new Passthrough contract from the blueprint
+- `get_passthrough_count`: Get the total number of deployed passthroughs
+- `get_passthrough`: Get a passthrough address by index
+- `get_all_passthroughs`: Get all deployed passthrough addresses
+
+#### Administration (Owner Only)
+- `set_blueprint`: Update the blueprint address to deploy new versions
+- `transfer_ownership`: Transfer factory ownership to a new address
+
+### Usage Flow
+
+1. **Deploy Blueprint**: Deploy the Passthrough contract as a blueprint
+   ```
+   make deploy_blueprint_sonic
+   ```
+
+2. **Deploy Factory**: Deploy the factory with the blueprint address
+   ```
+   make deploy_factory_sonic BLUEPRINT=0x...
+   ```
+
+3. **Deploy Passthroughs**: Create passthrough instances via the factory
+   ```
+   # Single deployment
+   make deploy_via_factory_sonic FACTORY=0x...
+
+   # Batch deployment
+   make deploy_many_factory_sonic FACTORY=0x... REWARD_TOKEN=0x...
+   ```
+
+4. **Check Factory Info**: View deployed passthroughs
+   ```
+   make factory_info_sonic FACTORY=0x...
+   ```
+
+### Testing
+
+Run the comprehensive test suite:
+```
+# Test factory core functionality
+make test_factory
+
+# Test factory integration scenarios
+make test_factory_integration
+
+# Run all tests
+make test_all
+```
+
+### Gas Savings
+
+The blueprint pattern provides significant gas savings:
+- **First Deployment**: Higher cost (blueprint deployment)
+- **Subsequent Deployments**: 40-60% gas savings per deployment
+- **Break-even**: Typically after 2-3 deployments
+
+### Events
+
+- `PassthroughCreated`: Emitted when a new passthrough is deployed
+- `BlueprintSet`: Emitted when the blueprint is updated

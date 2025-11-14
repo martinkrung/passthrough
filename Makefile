@@ -49,3 +49,28 @@ noisy_test:
 
 test:
 	ape test --network ethereum:local:test
+
+# Factory deployment commands
+deploy_blueprint_sonic:
+	ape run scripts/deploy_factory.py deploy-blueprint --network sonic:mainnet:node
+
+deploy_factory_sonic:
+	ape run scripts/deploy_factory.py deploy-factory --blueprint $(BLUEPRINT) --network sonic:mainnet:node
+
+deploy_via_factory_sonic:
+	ape run scripts/deploy_factory.py deploy-passthrough-via-factory --factory $(FACTORY) --network sonic:mainnet:node
+
+deploy_many_factory_sonic:
+	ape run scripts/deploy_factory.py deploy-many-via-factory --factory $(FACTORY) --reward-token $(REWARD_TOKEN) --network sonic:mainnet:node
+
+factory_info_sonic:
+	ape run scripts/deploy_factory.py factory-info --factory $(FACTORY) --network sonic:mainnet:node
+
+test_factory:
+	ape test tests/test_factory.py --network ethereum:local:test
+
+test_factory_integration:
+	ape test tests/test_factory_integration.py --network ethereum:local:test
+
+test_all:
+	ape test --network ethereum:local:test
