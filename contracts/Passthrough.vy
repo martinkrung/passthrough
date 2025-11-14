@@ -1,4 +1,4 @@
-#pragma version ^0.4.3
+#pragma version 0.4.3
 """
 @title Passthrough for L2
 @author anon contributor to curve
