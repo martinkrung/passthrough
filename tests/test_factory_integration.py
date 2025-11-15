@@ -1,6 +1,7 @@
 import pytest
 import ape
 from ape import project, accounts, Contract
+from conftest import get_passthrough_at
 
 
 @pytest.fixture
@@ -78,7 +79,7 @@ def test_deploy_multiple_gauges_scenario(factory, ownership_admin, parameter_adm
         deployed_passthroughs.append(passthrough_address)
 
         # Set up the passthrough
-        passthrough = Contract(passthrough_address, abi=project.Passthrough.contract_type.abi)
+        passthrough = get_passthrough_at(passthrough_address)
 
         # Set name
         passthrough.set_name(names[i], sender=accounts[6])
@@ -157,8 +158,8 @@ def test_upgrade_blueprint_and_deploy(factory, ownership_admin, parameter_admin,
     assert factory.get_passthrough_count() == 2
 
     # Both should still work
-    old_pt = Contract(original_passthrough, abi=project.Passthrough.contract_type.abi)
-    new_pt = Contract(new_passthrough, abi=project.Passthrough.contract_type.abi)
+    old_pt = get_passthrough_at(original_passthrough)
+    new_pt = get_passthrough_at(new_passthrough)
 
     old_pt.set_name("Old Passthrough", sender=guard)
     new_pt.set_name("New Passthrough", sender=guard)
@@ -192,7 +193,7 @@ def test_batch_deployment_simulation(factory, ownership_admin, parameter_admin, 
 
     # Configure each passthrough
     for i, pt_address in enumerate(passthroughs):
-        pt = Contract(pt_address, abi=project.Passthrough.contract_type.abi)
+        pt = get_passthrough_at(pt_address)
         pt.set_name(f"Passthrough #{i + 1}", sender=accounts[6])
         assert pt.name() == f"Passthrough #{i + 1}"
 
@@ -208,9 +209,9 @@ def test_centralized_admin_management(factory, ownership_admin, parameter_admin,
         factory.create_passthrough([], [guard.address], [], sender=owner)
 
     # Get all passthroughs
-    pt1 = Contract(factory.get_passthrough(0), abi=project.Passthrough.contract_type.abi)
-    pt2 = Contract(factory.get_passthrough(1), abi=project.Passthrough.contract_type.abi)
-    pt3 = Contract(factory.get_passthrough(2), abi=project.Passthrough.contract_type.abi)
+    pt1 = get_passthrough_at(factory.get_passthrough(0))
+    pt2 = get_passthrough_at(factory.get_passthrough(1))
+    pt3 = get_passthrough_at(factory.get_passthrough(2))
 
     # All should have same admins
     assert pt1.ownership_admin() == ownership_admin.address
@@ -228,5 +229,5 @@ def test_centralized_admin_management(factory, ownership_admin, parameter_admin,
 
     # New passthroughs also get the new admin
     factory.create_passthrough([], [guard.address], [], sender=owner)
-    pt4 = Contract(factory.get_passthrough(3), abi=project.Passthrough.contract_type.abi)
+    pt4 = get_passthrough_at(factory.get_passthrough(3))
     assert pt4.ownership_admin() == new_ownership_admin.address

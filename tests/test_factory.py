@@ -1,6 +1,7 @@
 import pytest
 import ape
 from ape import project, accounts, Contract
+from conftest import get_passthrough_at
 
 
 @pytest.fixture
@@ -81,7 +82,7 @@ def test_create_passthrough(factory, ownership_admin, parameter_admin, guard, di
     assert passthrough_address == event.passthrough
 
     # Verify the passthrough contract works
-    passthrough = Contract(passthrough_address, abi=project.Passthrough.contract_type.abi)
+    passthrough = get_passthrough_at(passthrough_address)
     assert passthrough.ownership_admin() == ownership_admin.address
     assert passthrough.parameter_admin() == parameter_admin.address
     assert passthrough.FACTORY() == factory.address
@@ -124,7 +125,7 @@ def test_passthrough_functionality(factory, ownership_admin, parameter_admin, gu
     )
 
     passthrough_address = factory.get_passthrough(0)
-    passthrough = Contract(passthrough_address, abi=project.Passthrough.contract_type.abi)
+    passthrough = get_passthrough_at(passthrough_address)
 
     # Test that guards can perform admin actions
     test_name = "Test Passthrough"
@@ -289,8 +290,8 @@ def test_passthrough_shares_factory_admins(factory, ownership_admin, parameter_a
     )
 
     # Get contracts
-    passthrough1 = Contract(factory.get_passthrough(0), abi=project.Passthrough.contract_type.abi)
-    passthrough2 = Contract(factory.get_passthrough(1), abi=project.Passthrough.contract_type.abi)
+    passthrough1 = get_passthrough_at(factory.get_passthrough(0))
+    passthrough2 = get_passthrough_at(factory.get_passthrough(1))
 
     # Both should have the same admins from factory
     assert passthrough1.ownership_admin() == ownership_admin.address
@@ -310,7 +311,7 @@ def test_admin_change_affects_new_passthroughs(factory, ownership_admin, paramet
     """Test that changing factory admins affects new passthroughs"""
     # Create first passthrough
     factory.create_passthrough([], [guard.address], [], sender=owner)
-    passthrough1 = Contract(factory.get_passthrough(0), abi=project.Passthrough.contract_type.abi)
+    passthrough1 = get_passthrough_at(factory.get_passthrough(0))
 
     # Change ownership admin
     new_ownership_admin = accounts[6]
@@ -318,7 +319,7 @@ def test_admin_change_affects_new_passthroughs(factory, ownership_admin, paramet
 
     # Create second passthrough
     factory.create_passthrough([], [guard.address], [], sender=owner)
-    passthrough2 = Contract(factory.get_passthrough(1), abi=project.Passthrough.contract_type.abi)
+    passthrough2 = get_passthrough_at(factory.get_passthrough(1))
 
     # First passthrough sees old admin
     assert passthrough1.ownership_admin() == ownership_admin.address
