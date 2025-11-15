@@ -36,8 +36,8 @@ def user(accounts):
 @pytest.fixture
 def blueprint(owner):
     """Deploy the Passthrough contract as a blueprint"""
-    # Deploy as a blueprint using the special blueprint deployment
-    return project.Passthrough.deploy_as_blueprint(sender=owner)
+    from conftest import deploy_blueprint
+    return deploy_blueprint(project.Passthrough, owner)
 
 
 @pytest.fixture
@@ -144,7 +144,8 @@ def test_passthrough_functionality(factory, ownership_admin, parameter_admin, gu
 
 def test_set_blueprint(factory, owner, user):
     """Test setting a new blueprint"""
-    new_blueprint = project.Passthrough.deploy_as_blueprint(sender=owner)
+    from conftest import deploy_blueprint
+    new_blueprint = deploy_blueprint(project.Passthrough, owner)
 
     # Owner can set new blueprint
     tx = factory.set_blueprint(new_blueprint.address, sender=owner)
@@ -208,7 +209,8 @@ def test_transfer_ownership(factory, owner, user, accounts):
     assert factory.owner() == new_owner.address
 
     # Old owner cannot set blueprint anymore
-    new_blueprint = project.Passthrough.deploy_as_blueprint(sender=owner)
+    from conftest import deploy_blueprint
+    new_blueprint = deploy_blueprint(project.Passthrough, owner)
     with ape.reverts("only owner can set blueprint"):
         factory.set_blueprint(new_blueprint.address, sender=owner)
 

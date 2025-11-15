@@ -37,7 +37,8 @@ def mock_token(accounts, owner):
 @pytest.fixture
 def blueprint(owner):
     """Deploy the Passthrough contract as a blueprint"""
-    return project.Passthrough.deploy_as_blueprint(sender=owner)
+    from conftest import deploy_blueprint
+    return deploy_blueprint(project.Passthrough, owner)
 
 
 @pytest.fixture
@@ -134,7 +135,8 @@ def test_upgrade_blueprint_and_deploy(factory, ownership_admin, parameter_admin,
     original_passthrough = factory.get_passthrough(0)
 
     # Deploy a new blueprint (could be an updated version)
-    new_blueprint = project.Passthrough.deploy_as_blueprint(sender=owner)
+    from conftest import deploy_blueprint
+    new_blueprint = deploy_blueprint(project.Passthrough, owner)
 
     # Update factory blueprint
     factory.set_blueprint(new_blueprint.address, sender=owner)
