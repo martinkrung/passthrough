@@ -20,18 +20,23 @@ def parameter_admin(accounts):
 
 
 @pytest.fixture
-def guard(accounts):
+def emergency_admin(accounts):
     return accounts[3]
 
 
 @pytest.fixture
-def distributor(accounts):
+def guard(accounts):
     return accounts[4]
 
 
 @pytest.fixture
-def user(accounts):
+def distributor(accounts):
     return accounts[5]
+
+
+@pytest.fixture
+def user(accounts):
+    return accounts[6]
 
 
 @pytest.fixture
@@ -42,9 +47,9 @@ def blueprint(owner):
 
 
 @pytest.fixture
-def factory(owner, blueprint, ownership_admin, parameter_admin):
+def factory(owner, blueprint, ownership_admin, parameter_admin, emergency_admin):
     """Deploy the PassthroughFactory with the blueprint and admins"""
-    return owner.deploy(project.PassthroughFactory, blueprint.address, ownership_admin.address, parameter_admin.address)
+    return owner.deploy(project.PassthroughFactory, blueprint.address, ownership_admin.address, parameter_admin.address, emergency_admin.address)
 
 
 def test_factory_deployment(factory, blueprint, owner, ownership_admin, parameter_admin):

@@ -11,32 +11,43 @@ deploy_info:
 get_constructor_abi:
 	python  scripts/get_constructor_abi.py
 
-deploy_arbitrum_sepolia:
+deploy_arbitrum_sepolia_infura:
 	ape run scripts/deploy_manager.py deploy --network arbitrum:sepolia:infura
 
 deploy_arbitrum:
 	ape run scripts/deploy_manager.py deploy --network arbitrum:mainnet:node
 
-deploy_info_taiko:
-	ape run scripts/deploy_manager.py info --network taiko:mainnet:node
+deploy_arbitrum_sepolia:
+	ape run scripts/deploy_manager.py deploy --network arbitrum:sepolia:node
+
+deploy_many_arbitrum:
+	ape run scripts/deploy_manager.py deploy-many --network arbitrum:mainnet:node
+
+deploy_many_arbitrum_dry_run:
+	ape run scripts/deploy_manager.py deploy-many --network arbitrum:mainnet:node --dry-run
+
+
+deploy_many_arbitrum_sepolia_dry_run:
+	ape run scripts/deploy_manager.py deploy-many --network arbitrum:sepolia:node --dry-run
+
+deploy_info_arbitrum:
+	ape run scripts/deploy_manager.py info --network arbitrum:mainnet:node
 
 deploy_taiko:
 	ape run scripts/deploy_manager.py deploy --network taiko:mainnet:node
 
-deploy_many_sonic:
-	ape run scripts/deploy_manager.py deploy-many --network sonic:mainnet:node
-
-deploy_optimism:
-	ape run scripts/deploy_manager.py deploy --network optimism:mainnet:node
-
-deploy_many_optimism:
-	ape run scripts/deploy_manager.py deploy-many --network optimism:mainnet:node
-
-deploy_info_optimism:
-	ape run scripts/deploy_manager.py info --network optimism:mainnet:node
 
 deploy_testnet:
 	ape run scripts/deploy_manager.py deploy-many --network ethereum:local:test
+
+filter_log:
+	ag --nonumbers "(Name|Link|Passthrough )" deployments/deploy_passthrough_contracts_sonic.log > deployments/deploy_passthrough_contracts_sonic_passthrough_only.log
+
+install:
+	uv sync
+
+pre_commit:
+	pre-commit run --all-files
 
 import_pvk:
 	ape accounts import arbideploy

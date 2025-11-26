@@ -20,6 +20,11 @@ def parameter_admin(accounts):
 
 
 @pytest.fixture
+def emergency_admin(accounts):
+    return accounts[3]
+
+
+@pytest.fixture
 def mock_gauge(accounts, owner):
     """Deploy a mock gauge for testing"""
     # For now, just return an account address
@@ -43,9 +48,9 @@ def blueprint(owner):
 
 
 @pytest.fixture
-def factory(owner, blueprint, ownership_admin, parameter_admin):
+def factory(owner, blueprint, ownership_admin, parameter_admin, emergency_admin):
     """Deploy the PassthroughFactory with the blueprint and admins"""
-    return owner.deploy(project.PassthroughFactory, blueprint.address, ownership_admin.address, parameter_admin.address)
+    return owner.deploy(project.PassthroughFactory, blueprint.address, ownership_admin.address, parameter_admin.address, emergency_admin.address)
 
 
 def test_deploy_multiple_gauges_scenario(factory, ownership_admin, parameter_admin, owner, accounts):

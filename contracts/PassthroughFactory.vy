@@ -23,27 +23,35 @@ event ParameterAdminSet:
     parameter_admin: indexed(address)
     timestamp: uint256
 
+event EmergencyAdminSet:
+    emergency_admin: indexed(address)
+    timestamp: uint256
+
 blueprint: public(address)
 owner: public(address)
 ownership_admin: public(address)
 parameter_admin: public(address)
+emergency_admin: public(address)
 passthroughs: public(DynArray[address, 1000])
 
 @deploy
-def __init__(_blueprint: address, _ownership_admin: address, _parameter_admin: address):
+def __init__(_blueprint: address, _ownership_admin: address, _parameter_admin: address, _emergency_admin: address):
     """
     @notice Contract constructor
     @param _blueprint The blueprint contract address for Passthrough
     @param _ownership_admin The ownership admin address for all passthroughs
     @param _parameter_admin The parameter admin address for all passthroughs
+    @param _emergency_admin The emergency admin address for all passthroughs
     """
     self.blueprint = _blueprint
     self.owner = msg.sender
     self.ownership_admin = _ownership_admin
     self.parameter_admin = _parameter_admin
+    self.emergency_admin = _emergency_admin
     log BlueprintSet(_blueprint, block.timestamp)
     log OwnershipAdminSet(_ownership_admin, block.timestamp)
     log ParameterAdminSet(_parameter_admin, block.timestamp)
+    log EmergencyAdminSet(_emergency_admin, block.timestamp)
 
 @external
 def create_passthrough(
@@ -106,6 +114,18 @@ def set_parameter_admin(_new_parameter_admin: address):
     assert _new_parameter_admin != empty(address), "new parameter admin cannot be zero address"
     self.parameter_admin = _new_parameter_admin
     log ParameterAdminSet(_new_parameter_admin, block.timestamp)
+
+@external
+def set_emergency_admin(_new_emergency_admin: address):
+    """
+    @notice Set a new emergency admin address
+    @param _new_emergency_admin The new emergency admin address
+    @dev Only the ownership admin can set a new emergency admin
+    """
+    assert msg.sender == self.ownership_admin, "only ownership admin can set new emergency admin"
+    assert _new_emergency_admin != empty(address), "new emergency admin cannot be zero address"
+    self.emergency_admin = _new_emergency_admin
+    log EmergencyAdminSet(_new_emergency_admin, block.timestamp)
 
 @external
 def transfer_ownership(_new_owner: address):

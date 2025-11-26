@@ -69,6 +69,7 @@ The factory uses Vyper's blueprint pattern to deploy Passthrough contracts with 
 
 - **Gas Efficient Deployments**: Typically saves 40-60% of deployment gas compared to direct deployments
 - **Centralized Management**: Track all deployed passthroughs from a single contract
+- **Centralized Admin Management**: Factory stores ownership_admin, parameter_admin, and emergency_admin for all passthroughs
 - **Upgradeable Blueprint**: Owner can update the blueprint to deploy new versions
 - **Permissionless Deployment**: Anyone can deploy a passthrough via the factory
 - **Deployment Tracking**: All deployed passthroughs are tracked and indexed
@@ -83,6 +84,9 @@ The factory uses Vyper's blueprint pattern to deploy Passthrough contracts with 
 
 #### Administration (Owner Only)
 - `set_blueprint`: Update the blueprint address to deploy new versions
+- `set_ownership_admin`: Update the ownership admin for all passthroughs
+- `set_parameter_admin`: Update the parameter admin for all passthroughs
+- `set_emergency_admin`: Update the emergency admin for all passthroughs
 - `transfer_ownership`: Transfer factory ownership to a new address
 
 ### Usage Flow
@@ -136,3 +140,22 @@ The blueprint pattern provides significant gas savings:
 
 - `PassthroughCreated`: Emitted when a new passthrough is deployed
 - `BlueprintSet`: Emitted when the blueprint is updated
+
+# Changelog
+
+## Version 0.0.4
+
+* recover token (on normal operation, this contract never holds any tokens, so this function is only used in case of emergency)
+* add name to for single_reward_token
+* Added PassthroughFactory with Blueprint pattern for gas-efficient deployments
+* Centralized admin management in factory
+
+## Version 0.0.3
+
+* Now with L2 Emergency Agent
+* init changed to agent as fixed 3 list
+* named these L2 agents agents here too
+* added more helper function to get each reward_data as single value
+* added is_period_active() to see if rewards are still running
+* reward_data_with_preset() as reward_data if token and gauge is set
+* moved event call in remove_distributor, now only should create event if something is removed
